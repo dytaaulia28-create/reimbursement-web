@@ -1,0 +1,430 @@
+=== PAGE 1 ===
+ReimHub
+ AI-Powered Employee Reimbursement
+ Management System
+ Dokumen Research & Development (R&D;) yang disusun untuk kebutuhan rancangan sistem
+reimbursement internal perusahaan, dengan fokus pada workflow berjenjang, kontrol internal,
+ arsip elektronik, general ledger sederhana, serta dashboard analytics berbasis data.
+Ruang lingkup
+Web/PWA/opsional APK, multi-role, approval, pembayaran, arsip, laporan
+Versi
+v2 - deep research
+Fokus AI
+Non-AI analytics by default, AI hanya opsional untuk ringkasan naratif
+Stack yang disarankan
+Vue 3 + Ionic Vue + Supabase + Postgres + Storage
+
+
+=== PAGE 2 ===
+1. Ringkasan Eksekutif
+ReimHub adalah rancangan sistem reimbursement internal yang memecah proses menjadi beberapa tahap
+yang bisa diaudit: pengajuan karyawan, persetujuan atasan, verifikasi finance, eksekusi pembayaran oleh
+treasury, pencatatan general ledger, dan pengarsipan elektronik. Rancangan ini menempatkan kontrol internal
+sebagai prioritas utama, sehingga satu aktor tidak memegang wewenang absolut dari awal sampai akhir.
+Pembelajaran utama dari deep research ini adalah bahwa komponen yang benar-benar dibutuhkan untuk
+project kuliah bukanlah AI yang ditempel ke semua fitur, melainkan workflow yang rapi, akses berbasis peran,
+audit trail, dan data model yang konsisten. Analisis yang bisa dibaca langsung dari chart sebaiknya tetap
+dikerjakan oleh SQL dan visualisasi, sedangkan AI diposisikan hanya sebagai opsional untuk ringkasan naratif
+bila kuota tersedia.
+Dengan pendekatan ini, project menjadi lebih realistis, lebih mudah dijelaskan saat presentasi, dan lebih aman
+dari over-engineering yang sering membuat tugas sederhana berubah menjadi proyek setengah produk
+enterprise.
+2. Metodologi R&D;
+
+Literature review pada dokumentasi resmi Supabase, Google Gemini API, OWASP, NIST, dan Oracle.
+
+Analisis domain reimbursement berdasarkan alur bisnis umum perusahaan: submit, approval, verification,
+payment, ledger, archive.
+
+Pemodelan kebutuhan fungsional dan non-fungsional dari sudut pandang user role: karyawan, atasan,
+finance, treasury, admin.
+
+Penetapan batasan teknis berdasarkan kapasitas API gratis dan kebutuhan demo kuliah.
+
+Turunan implementasi ke struktur database, state machine, dan struktur folder project.
+3. Hasil Deep Research yang Menjadi Dasar Desain
+Temuan
+Implikasi desain
+OWASP menekankan least privilege dan RBAC untuk membatasi hak akses hanya pada kemampuan yang diperlukan.
+ReimHub harus memisahkan hak akses per role dan melakukan deny-by-default.
+Supabase menyediakan Postgres, Auth, Storage, dan RLS yang terintegrasi.
+Supabase cocok untuk project online yang butuh database, login, file storage, dan kontrol akses baris.
+Gemini API mendukung structured outputs dan function calling.
+Jika AI dipakai, lebih baik untuk ringkasan terstruktur daripada menggantikan workflow inti.
+NIST dan Oracle menekankan audit logging dan audit trail pada sistem keuangan.
+ReimHub perlu approval logs, payment logs, ledger entries, dan archive records.
+4. Ruang Lingkup
+In-scope: pengajuan reimburse, upload bukti, approval berjenjang, verifikasi finance, payment queue, bukti
+transfer, ledger entry sederhana, arsip elektronik, notifikasi, dan dashboard per role.
+Out-of-scope: auto approval, chatbot umum, OCR struk, fraud AI model berat, full accounting ERP,
+multi-currency, dan integrasi bank real-time pada fase awal.
+Pembatasan ini sengaja dibuat agar project tetap selesai dalam waktu kuliah dan tidak berkembang liar menjadi
+sistem enterprise yang hanya terlihat bagus di diagram, lalu menolak dibangun saat kode mulai nyata.
+5. Analisis Proses Bisnis
+Karyawan
+  -> Submit reimbursement
+  -> Upload receipt
+Atasan
+  -> Review business justification
+  -> Approve / Reject
+Finance
+
+
+=== PAGE 3 ===
+  -> Check policy compliance
+  -> Verify amount, category, and receipt completeness
+Treasury
+  -> Execute payment
+  -> Upload payment proof
+System
+  -> Write ledger entry
+  -> Generate archive PDF
+  -> Mark status as archived
+Pemecahan tahap ini mengikuti prinsip segregation of duties: orang yang mengajukan bukan orang yang
+menyetujui, orang yang menyetujui bukan orang yang membayar, dan orang yang membayar bukan orang yang
+menyusun kebijakan. Prinsip ini sejalan dengan least privilege dan role-based access control yang disarankan
+OWASP.
+6. Aktor dan Hak Akses
+Aktor
+Hak utama
+Batasan
+Karyawan
+Submit, edit draft, lihat status, lihat riwayat, lihat bukti pembayaran miliknya
+Tidak dapat approve, verifikasi, atau membayar
+Atasan
+Lihat pending, approve/reject, lihat receipt thumbnail, lihat team summary
+Tidak dapat mengeksekusi pembayaran
+Finance
+Verifikasi policy, cek receipt, lihat analytics perusahaan, buat voucher
+Tidak dapat mengeksekusi pembayaran
+Treasury
+Lihat queue pembayaran, transfer, upload proof, tandai paid
+Tidak dapat mengubah keputusan approval
+Admin
+Kelola role, kategori, setting, audit log
+Tidak ikut workflow operasional
+7. Rancangan UI/UX per Role
+Acuan visual mengikuti mockup mobile modern berbahasa Indonesia dengan kartu berujung membulat, warna
+pastel, dan layout 2x2. Untuk project ini, tampilan yang paling penting adalah halaman Home masing-masing
+role.
+
+Karyawan: Home berisi ringkasan pengajuan, tombol ajukan reimburse, riwayat, dan panel status. Tidak
+perlu thumbnail struk di homepage.
+
+Atasan: Home fokus ke pending approval list. Thumbnail struk tampil di card agar verifikasi cepat. Bagian
+atas cukup menampilkan jumlah pending approval.
+
+Finance: Home menampilkan queue verifikasi, kartu pengajuan, thumbnail receipt, dan panel
+laporan/analytics berbasis data.
+
+Treasury: Home fokus ke queue pembayaran, rekening tujuan, status payout, dan bukti transfer. Thumbnail
+struk pengeluaran tidak prioritas di halaman ini.
+Sketsa menu bottom navigation:
+Employee:  Home | Reimburse | Riwayat | Profil
+Manager :  Home | Approval  | History | Profil
+Finance :  Home | Verify    | Reports | Profil
+Treasury:  Home | Payment   | Archive | Profil
+8. Kebutuhan Fungsional
+
+Autentikasi login berbasis role dan session/JWT.
+
+Pengajuan reimbursement dengan data kategori, deskripsi, nominal, tanggal, dan upload receipt.
+
+Approval/rejection berlapis dengan catatan penolakan.
+
+Verifikasi finance terhadap kelengkapan bukti dan kebijakan.
+
+Payment execution oleh treasury dan upload payment proof.
+
+Automatic ledger entry setelah pembayaran berhasil.
+
+
+=== PAGE 4 ===
+
+Electronic archive berupa PDF yang menggabungkan seluruh dokumen reimbursement.
+
+Dashboard analytics berbasis query SQL dan chart, bukan AI untuk data yang sudah jelas terbaca.
+
+AI optional hanya untuk executive summary naratif bila fitur ini diaktifkan dan token memungkinkan.
+9. Kebutuhan Non-Fungsional
+
+Keamanan: password hashing, deny-by-default, audit trail, access control per role.
+
+Kinerja: query ringkas untuk dashboard, storage path untuk file, pagination pada list panjang.
+
+Reliabilitas: backup database, retry upload file, idempotent payment action.
+
+Maintainability: modul terpisah per role, service layer, repository pattern.
+
+Usability: mobile-first, bahasa Indonesia, aksi utama terlihat jelas.
+
+Portabilitas: web responsif, dapat dijadikan PWA atau APK melalui Capacitor bila dibutuhkan.
+10. Desain Database
+Database harus memisahkan data master, transaksi, dokumen, dan audit agar jejak proses bisa ditelusuri. Jika
+memakai Supabase, tabel bisa di-query dari client dengan kontrol RLS. File struk dan PDF arsip disimpan di
+Storage, sementara database hanya menyimpan metadata dan path file.
+Tabel
+Fungsi
+Kolom inti
+users
+Data akun
+id,
+full_name,
+email,
+password_hash,
+role_id,
+department_id,
+status
+roles
+Daftar role
+id,
+role_name
+departments
+Master divisi
+id,
+department_name
+categories
+Master kategori
+id,
+category_name,
+gl_code
+reimbursements
+Header pengajuan
+id,
+code,
+employee_id,
+category_id,
+description,
+amount,
+transaction_date,
+status,
+current_stage
+reimbursement_receipts
+Metadata bukti
+id,
+reimbursement_id,
+receipt_path,
+checksum,
+mime_type
+approval_logs
+Catatan approval
+id,
+reimbursement_id,
+actor_id,
+stage,
+decision,
+notes,
+acted_at
+
+
+=== PAGE 5 ===
+verification_logs
+Catatan finance
+id,
+reimbursement_id,
+actor_id,
+decision,
+notes,
+verified_at
+payments
+Eksekusi pembayaran
+id,
+reimbursement_id,
+treasury_id,
+method,
+bank_name,
+reference_no,
+proof_path,
+paid_at
+ledger_entries
+Jurnal sederhana
+id,
+reimbursement_id,
+account_code,
+debit,
+credit,
+entry_date,
+memo
+documents
+Dokumen hasil generate
+id,
+reimbursement_id,
+doc_type,
+file_path,
+generated_at
+archives
+Arsip elektronik
+id,
+reimbursement_id,
+archive_path,
+archived_at,
+archived_by
+notifications
+Notifikasi user
+id,
+user_id,
+title,
+body,
+read_at,
+created_at
+audit_logs
+Audit trail
+id,
+actor_id,
+action,
+entity,
+entity_id,
+ip_address,
+created_at
+11. Status Workflow
+draft
+ -> pending_manager
+ -> rejected_manager
+ -> pending_finance
+ -> rejected_finance
+ -> pending_payment
+ -> paid
+ -> archived
+Status archived diposisikan sebagai status internal sistem, bukan status yang harus selalu tampil ke karyawan.
+Karyawan cukup melihat bahwa reimbursement sudah dibayar. Detail arsip digunakan oleh finance, treasury,
+atau auditor.
+12. General Ledger dan Arsip Elektronik
+Setelah payment berhasil, sistem membuat dua output backend: jurnal ledger sederhana dan PDF arsip
+elektronik. Ledger entry berguna untuk pencatatan akuntansi internal, sedangkan arsip PDF berguna sebagai
+bukti lengkap yang menyatukan form pengajuan, receipt, approval, finance verification, dan payment proof.
+
+
+=== PAGE 6 ===
+Contoh jurnal:
+Debit  Beban Transportasi   Rp250.000
+Credit Kas/Bank             Rp250.000
+Arsip PDF:
+- data pengajuan
+- receipt
+- approval logs
+- finance verification
+- payment proof
+- reference number
+Arsip tidak 'diterima' oleh aktor tertentu; arsip adalah output sistem yang disimpan untuk kepentingan
+organisasi. Secara praktis, file disimpan di storage dan metadata disimpan ke tabel archives.
+13. Analytics dan Strategi AI
+Berdasarkan pertimbangan token API gratis dan kemudahan implementasi, analytics utama sebaiknya
+dikerjakan dengan SQL dan chart. Artinya, kategori pengeluaran, tren bulanan, distribusi per divisi, dan rekap
+penolakan tidak perlu memanggil AI karena hasilnya sudah jelas dari grafik. AI hanya dipakai jika benar-benar
+dibutuhkan untuk ringkasan naratif singkat, misalnya executive summary bulanan.
+
+Non-AI analytics: pie chart kategori, line chart tren bulanan, bar chart per divisi, tabel rejection reason,
+rekap approval SLA.
+
+AI optional: 1 tombol untuk generate executive summary dari angka yang sudah di-aggregate, bukan dari
+seluruh transaksi mentah.
+
+Anti-overuse policy: jangan panggil AI di setiap halaman refresh, karena kuota gratis bisa habis sebelum
+demo dimulai.
+14. Arsitektur Teknis yang Direkomendasikan
+Frontend
+  - Vue 3 / Ionic Vue / TypeScript
+  - Responsive mobile-first UI
+  - Bottom navigation per role
+Backend
+  - Supabase Auth
+  - PostgreSQL
+  - RLS policies
+  - Storage for receipts and PDFs
+Optional
+  - Node.js service for PDF generation or custom business logic
+  - Capacitor if APK package is needed
+Supabase cocok karena sudah menyediakan database, auth, storage, dan row-level security dalam satu
+ekosistem, sehingga cocok untuk project kuliah yang butuh online database tanpa merawat server sendiri.
+15. Keamanan dan Kontrol Internal
+
+RBAC untuk memisahkan akses per role.
+
+Least privilege dan deny-by-default untuk mencegah akses di luar tugas.
+
+Password hashing, session/JWT, dan validasi input.
+
+Audit logging untuk semua aksi penting: submit, approve, reject, pay, archive.
+
+RLS di level database bila memakai Supabase.
+
+Pemisahan tabel transaksi, tabel dokumen, dan tabel log agar jejak audit tidak hilang.
+16. Rencana Testing
+Jenis tes
+Contoh skenario
+Hasil yang diharapkan
+
+
+=== PAGE 7 ===
+Unit test
+Validasi status transition
+Status tidak bisa lompat tahap
+Integration test
+Submit -> approve -> pay -> archive
+Data dan file tercatat konsisten
+Security test
+Coba akses role lain
+Akses ditolak
+UI test
+Homepage manager menampilkan receipt thumbnail
+Card mudah dipindai
+UAT
+Demo alur end-to-end
+Pengguna memahami alur tanpa penjelasan panjang
+17. Risiko dan Mitigasi
+Risiko
+Mitigasi
+Overengineering
+Batasi AI, pakai SQL+chart untuk analytics yang sudah jelas terbaca.
+Quota API gratis habis
+Jadikan AI opsional dan hanya dipanggil saat generate summary.
+Role leakage
+RBAC, RLS, dan deny-by-default.
+File hilang / korup
+Storage backup dan checksum metadata.
+Tampilan terlalu padat
+Home tiap role hanya menampilkan informasi paling relevan.
+18. Roadmap Pengembangan
+
+Fase 1 - requirement final dan UI mockup per role.
+
+Fase 2 - schema database, auth, RBAC, dan master data.
+
+Fase 3 - reimbursement workflow end-to-end.
+
+Fase 4 - payment, ledger, archive, dan audit trail.
+
+Fase 5 - analytics dashboard berbasis SQL dan chart.
+
+Fase 6 - optional AI summary, testing, dan deployment.
+19. Kesimpulan
+ReimHub paling kuat bila diposisikan sebagai sistem reimbursement internal dengan kontrol yang jelas, UI yang
+bersih, dan analytics yang mostly non-AI. Struk bukti menjadi elemen penting pada approval dan finance, tetapi
+tidak perlu membanjiri semua halaman. Arsip elektronik dan general ledger sederhana menambah nilai bisnis,
+sementara AI cukup dipakai secara selektif bila benar-benar memberi ringkasan yang tidak bisa didapat dari
+chart.
+20. Referensi
+[R1] OWASP - Authorization Cheat Sheet / Least Privilege:
+https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+[R2] OWASP - Access Control: https://owasp.org/www-community/Access_Control
+[R3] OWASP - A01 Broken Access Control: https://owasp.org/Top10/2021/A01_2021-Broken_Access_Control/
+[R4] OWASP - Least Privilege Principle: https://owasp.org/www-community/controls/Least_Privilege_Principle
+[R5] Supabase Docs - Database overview: https://supabase.com/docs/guides/database/overview
+[R6] Supabase Docs - Auth: https://supabase.com/docs/guides/auth
+[R7] Supabase Docs - RLS: https://supabase.com/docs/guides/database/postgres/row-level-security
+[R8] Supabase Docs - Storage access control: https://supabase.com/docs/guides/storage/security/access-control
+[R9] Google AI for Developers - Gemini API docs: https://ai.google.dev/gemini-api/docs
+[R10] Google AI for Developers - Gemini structured outputs: https://ai.google.dev/gemini-api/docs/structured-output
+[R11] Google AI for Developers - Gemini function calling: https://ai.google.dev/gemini-api/docs/function-calling
+[R12] NIST SP 800-53 Rev. 5: https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final
+[R13] Oracle - General Ledger audit trail references: https://docs.oracle.com/
+
+
+=== PAGE 8 ===
+Lampiran A - Prompting Pack Overview
+Lampiran ini merangkum prompt agent yang harus menghasilkan kode ReimHub tanpa overengineering.
+Prompt lengkap disediakan sebagai file terpisah agar lebih mudah dipaste ke IDE agentic coding.
+Prinsip prompt: fokus pada workflow reimbursement, empat role utama, receipt thumbnail di halaman manager
+dan finance, analytics berbasis SQL + chart, dan AI hanya opsional untuk ringkasan naratif.
+
+
